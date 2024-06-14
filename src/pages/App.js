@@ -1,11 +1,11 @@
 import React from 'react';
-import Home from '@pages/Home'
+import Cube from '@components/Cube'
 import './App.css'
 
 function App() {
     return (
         <div className="app">
-            <Home />
+            <Cube />
         </div>
     );
 }
