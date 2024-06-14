@@ -7,7 +7,7 @@ function Home() {
     const sceneRef = useRef(null);
     const lightRef = useRef(null);
     const cubesRef = useRef(null);
-    const rendererRef = useRef(null);
+    const rendererRef = useRef(null); 
     const cameraRef = useRef(null);
     const controllerRef = useRef(null);
 
