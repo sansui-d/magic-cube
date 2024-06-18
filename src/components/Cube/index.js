@@ -18,6 +18,8 @@ function Home() {
     const movePointRef = useRef(null); //移动点
     const initStatusRef = useRef([]); //魔方初始状态
 
+    const isMouseDown = useRef(false);// 鼠标是否按下
+
     const origPoint = new THREE.Vector3(0, 0, 0); //原点
     const raycaster = new THREE.Raycaster(); //光线碰撞检测器
     const mouse = new THREE.Vector2(); //存储鼠标坐标或者触摸坐标
@@ -76,21 +78,21 @@ function Home() {
         len: 50,
         colors: [
             'rgb(255, 0, 0)',
-            'rgb(255, 128, 0)',
+            'rgb(255, 112, 0)',
             'rgb(255, 255, 0)',
-            'rgb(0, 128, 0)',
+            'rgb(0, 112, 0)',
             'rgb(0, 0, 255)',
             'rgb(255, 255, 255)'
         ]
     };
 
     /**
-   * 简易魔方
-   * x、y、z 魔方中心点坐标
-   * num 魔方阶数
-   * len 小方块宽高
-   * colors 魔方六面体颜色
-   */
+     * 简易魔方
+     * x、y、z 魔方中心点坐标
+     * num 魔方阶数
+     * len 小方块宽高
+     * colors 魔方六面体颜色
+    */
     const SimpleCube = (x, y, z, num, len, colors) => {
         //魔方左上角坐标
         const leftUpX = x - (num / 2) * len;
@@ -159,12 +161,12 @@ function Home() {
         );
         for (let i = 0; i < cubes.length; i++) {
             let item = cubes[i];
-            /**
-       * 由于筛选运动元素时是根据物体的id规律来的，但是滚动之后位置发生了变化；
-       * 再根据初始规律筛选会出问题，而且id是只读变量；
-       * 所以这里给每个物体设置一个额外变量cubeIndex，每次滚动之后更新根据初始状态更新该cubeIndex；
-       * 让该变量一直保持初始规律即可。
-       */
+        /*
+         * 由于筛选运动元素时是根据物体的id规律来的，但是滚动之后位置发生了变化；
+         * 再根据初始规律筛选会出问题，而且id是只读变量；
+         * 所以这里给每个物体设置一个额外变量cubeIndex，每次滚动之后更新根据初始状态更新该cubeIndex；
+         * 让该变量一直保持初始规律即可。
+        */
             initStatusRef.current = [
                 ...initStatusRef.current,
                 {
@@ -197,6 +199,7 @@ function Home() {
 
     //渲染
     const render = () => {
+        resizeCanvasToDisplaySize()
         rendererRef.current.clear();
         rendererRef.current.render(sceneRef.current, cameraRef.current);
         window.requestAnimationFrame(render);
@@ -211,40 +214,19 @@ function Home() {
         initObject();
         render();
         //监听鼠标事件
-        rendererRef.current.domElement.addEventListener(
-            'mousedown',
-            startCube,
-            false
-        );
-        rendererRef.current.domElement.addEventListener(
-            'mousemove',
-            moveCube,
-            false
-        );
+        rendererRef.current.domElement.addEventListener('mousedown', startCube, false);
+        rendererRef.current.domElement.addEventListener('mousemove', moveCube, false);
         rendererRef.current.domElement.addEventListener('mouseup', stopCube, false);
         //监听触摸事件
-        rendererRef.current.domElement.addEventListener(
-            'touchstart',
-            startCube,
-            false
-        );
-        rendererRef.current.domElement.addEventListener(
-            'touchmove',
-            moveCube,
-            false
-        );
-        rendererRef.current.domElement.addEventListener(
-            'touchend',
-            stopCube,
-            false
-        );
+        rendererRef.current.domElement.addEventListener('touchstart', startCube, false);
+        rendererRef.current.domElement.addEventListener('touchmove', moveCube, false);
+        rendererRef.current.domElement.addEventListener('touchend', stopCube, false);
         //视角控制
         const controller = new OrbitControls(
             cameraRef.current,
             rendererRef.current.domElement
         );
         controller.target = new THREE.Vector3(0, 0, 0); //设置控制点
-        console.log(rendererRef.current.domElement, 'controller');
         controllerRef.current = controller;
     };
 
@@ -252,13 +234,14 @@ function Home() {
     const stopCube = () => {
         intersectRef.current = null;
         startPointRef.current = null;
+        isMouseDown.current = false;
     };
 
     //绕着世界坐标系的某个轴旋转
     const rotateAroundWorldY = (obj, rad) => {
         const x0 = obj.position.x;
         const z0 = obj.position.z;
-        /**
+    /**
      * 因为物体本身的坐标系是随着物体的变化而变化的，
      * 所以如果使用rotateZ、rotateY、rotateX等方法，
      * 多次调用后就会出问题，先改为Quaternion实现。
@@ -305,7 +288,7 @@ function Home() {
                     const direction = getDirection(sub); //获得方向
                     const elements = getBoxs(intersectRef.current, direction);
                     const startTime = new Date().getTime();
-                    window.requestAnimationFrame(function (timestamp) {
+                    window.requestAnimationFrame((timestamp) => {
                         rotateAnimation(elements, direction, timestamp, 0);
                     });
                 }
@@ -315,8 +298,8 @@ function Home() {
     };
 
     /**
-   * 旋转动画
-   */
+    * 旋转动画
+    */
     const rotateAnimation = (
         elements,
         direction,
@@ -412,7 +395,7 @@ function Home() {
                 break;
         }
         if (currentstamp - startstamp < totalTime) {
-            window.requestAnimationFrame(function (timestamp) {
+            window.requestAnimationFrame((timestamp) => {
                 rotateAnimation(
                     elements,
                     direction,
@@ -621,15 +604,14 @@ function Home() {
 
     //开始操作魔方
     const startCube = (event) => {
+        isMouseDown.current = true;
         getIntersects(event);
         //魔方没有处于转动过程中且存在碰撞物体
         if (!isRotatingRef.current && intersectRef.current) {
             startPointRef.current = intersectRef.current.point; //开始转动，设置起始点
             controllerRef.current.enabled = false; //当刚开始的接触点在魔方上时操作为转动魔方，屏蔽控制器转动
-            console.log(1);
         } else {
             controllerRef.current.enabled = true; //当刚开始的接触点没有在魔方上或者在魔方上但是魔方正在转动时操作转动控制器
-            console.log(2);
         }
     };
 
@@ -659,11 +641,29 @@ function Home() {
             } catch (err) {
                 //nothing
             }
+        } else {
+            intersectRef.current = null;
+            if (!isMouseDown.current) {
+                controllerRef.current.enabled = true;
+            }
         }
     };
 
+    const resizeCanvasToDisplaySize = () => {
+        const canvas = rendererRef.current.domElement;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        if (canvas.width !== width || canvas.height !== height) {
+          rendererRef.current.setSize(width, height);
+          cameraRef.current.aspect = width / height;
+          cameraRef.current.updateProjectionMatrix();
+        }
+    }
+
     useEffect(() => {
         threeStart();
+        window.addEventListener('resize', resizeCanvasToDisplaySize)
+        return () => window.removeEventListener('resize', resizeCanvasToDisplaySize)
     }, []);
 
     return <div id="canvas-frame"></div>;
