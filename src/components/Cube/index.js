@@ -3,6 +3,8 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+import { cubeParams, origPoint, raycaster, mouse, xLine, xLineAd, yLine, yLineAd, zLine, zLineAd } from './constants'
+
 function Home() {
     const sceneRef = useRef(null);
     const lightRef = useRef(null);
@@ -17,25 +19,14 @@ function Home() {
     const startPointRef = useRef(null); // 触发点
     const movePointRef = useRef(null); // 移动点
     const initStatusRef = useRef([]); // 魔方初始状态
-
     const isMouseDown = useRef(false);// 鼠标是否按下
-
-    const origPoint = new THREE.Vector3(0, 0, 0); // 原点
-    const raycaster = new THREE.Raycaster(); // 光线碰撞检测器
-    const mouse = new THREE.Vector2(); // 存储鼠标坐标或者触摸坐标
-    // 魔方转动的六个方向
-    const xLine = new THREE.Vector3(1, 0, 0); // X轴正方向
-    const xLineAd = new THREE.Vector3(-1, 0, 0); // X轴负方向
-    const yLine = new THREE.Vector3(0, 1, 0); // Y轴正方向
-    const yLineAd = new THREE.Vector3(0, -1, 0); // Y轴负方向
-    const zLine = new THREE.Vector3(0, 0, 1); // Z轴正方向
-    const zLineAd = new THREE.Vector3(0, 0, -1); // Z轴负方向
 
     // 根据页面宽度和高度创建渲染器，并添加容器中
     const initThree = () => {
         const renderer = new THREE.WebGLRenderer({
             antialias: true
         });
+        renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setClearColor(0xffffff, 1.0);
         document.getElementById('canvas-frame').appendChild(renderer.domElement);
@@ -59,6 +50,7 @@ function Home() {
     // 创建场景，后续元素需要加入到场景中才会显示出来
     const initScene = () => {
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color('rgb(255, 208, 208)');
         sceneRef.current = scene;
     };
 
@@ -67,23 +59,6 @@ function Home() {
         const light = new THREE.AmbientLight(0xfefefe);
         sceneRef.current.add(light);
         lightRef.current = light;
-    };
-
-    const cubeParams = {
-        // 魔方参数
-        x: 0,
-        y: 0,
-        z: 0,
-        num: 3,
-        len: 50,
-        colors: [
-            'rgb(255, 0, 0)',
-            'rgb(255, 112, 0)',
-            'rgb(255, 255, 0)',
-            'rgb(0, 112, 0)',
-            'rgb(0, 0, 255)',
-            'rgb(255, 255, 255)'
-        ]
     };
 
     /**
@@ -161,12 +136,12 @@ function Home() {
         );
         for (let i = 0; i < cubes.length; i++) {
             let item = cubes[i];
-        /*
-         * 由于筛选运动元素时是根据物体的id规律来的，但是滚动之后位置发生了变化；
-         * 再根据初始规律筛选会出问题，而且id是只读变量；
-         * 所以这里给每个物体设置一个额外变量cubeIndex，每次滚动之后更新根据初始状态更新该cubeIndex；
-         * 让该变量一直保持初始规律即可。
-        */
+            /*
+             * 由于筛选运动元素时是根据物体的id规律来的，但是滚动之后位置发生了变化；
+             * 再根据初始规律筛选会出问题，而且id是只读变量；
+             * 所以这里给每个物体设置一个额外变量cubeIndex，每次滚动之后更新根据初始状态更新该cubeIndex；
+             * 让该变量一直保持初始规律即可。
+            */
             initStatusRef.current = [
                 ...initStatusRef.current,
                 {
@@ -197,55 +172,15 @@ function Home() {
         cubesRef.current = cubes;
     };
 
-    // 渲染
-    const render = () => {
-        resizeCanvasToDisplaySize()
-        rendererRef.current.clear();
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
-        window.requestAnimationFrame(render);
-    };
-
-    // 开始
-    const threeStart = () => {
-        initThree();
-        initCamera();
-        initScene();
-        initLight();
-        initObject();
-        render();
-        // 监听鼠标事件
-        rendererRef.current.domElement.addEventListener('mousedown', startCube, false);
-        rendererRef.current.domElement.addEventListener('mousemove', moveCube, false);
-        rendererRef.current.domElement.addEventListener('mouseup', stopCube, false);
-        // 监听触摸事件
-        rendererRef.current.domElement.addEventListener('touchstart', startCube, false);
-        rendererRef.current.domElement.addEventListener('touchmove', moveCube, false);
-        rendererRef.current.domElement.addEventListener('touchend', stopCube, false);
-        // 视角控制
-        const controller = new OrbitControls(
-            cameraRef.current,
-            rendererRef.current.domElement
-        );
-        controller.target = new THREE.Vector3(0, 0, 0); // 设置控制点
-        controllerRef.current = controller;
-    };
-
-    // 魔方操作结束
-    const stopCube = () => {
-        intersectRef.current = null;
-        startPointRef.current = null;
-        isMouseDown.current = false;
-    };
-
     // 绕着世界坐标系的某个轴旋转
     const rotateAroundWorldY = (obj, rad) => {
         const x0 = obj.position.x;
         const z0 = obj.position.z;
-    /**
-     * 因为物体本身的坐标系是随着物体的变化而变化的，
-     * 所以如果使用rotateZ、rotateY、rotateX等方法，
-     * 多次调用后就会出问题，先改为Quaternion实现。
-    */
+        /**
+         * 因为物体本身的坐标系是随着物体的变化而变化的，
+         * 所以如果使用rotateZ、rotateY、rotateX等方法，
+         * 多次调用后就会出问题，先改为Quaternion实现。
+        */
         const q = new THREE.Quaternion();
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), rad);
         obj.quaternion.premultiply(q);
@@ -272,29 +207,6 @@ function Home() {
         // obj.rotateX(rad);
         obj.position.y = Math.cos(rad) * y0 - Math.sin(rad) * z0;
         obj.position.z = Math.cos(rad) * z0 + Math.sin(rad) * y0;
-    };
-
-    // 滑动操作魔方
-    const moveCube = (event) => {
-        getIntersects(event);
-        if (intersectRef.current) {
-            if (!isRotatingRef.current && startPointRef.current) {
-                // 魔方没有进行转动且满足进行转动的条件
-                movePointRef.current = intersectRef.current.point;
-                if (!movePointRef.current.equals(startPointRef?.current)) {
-                    // 和起始点不一样则意味着可以得到转动向量了
-                    isRotatingRef.current = true; // 转动标识置为true
-                    const sub = movePointRef.current.sub(startPointRef.current); // 计算转动向量
-                    const direction = getDirection(sub); // 获得方向
-                    const elements = getBoxs(intersectRef.current, direction);
-                    const startTime = new Date().getTime();
-                    window.requestAnimationFrame((timestamp) => {
-                        rotateAnimation(elements, direction, timestamp, 0);
-                    });
-                }
-            }
-        }
-        event.preventDefault();
     };
 
     /**
@@ -615,6 +527,36 @@ function Home() {
         }
     };
 
+    // 滑动操作魔方
+    const moveCube = (event) => {
+        getIntersects(event);
+        if (intersectRef.current) {
+            if (!isRotatingRef.current && startPointRef.current) {
+                // 魔方没有进行转动且满足进行转动的条件
+                movePointRef.current = intersectRef.current.point;
+                if (!movePointRef.current.equals(startPointRef?.current)) {
+                    // 和起始点不一样则意味着可以得到转动向量了
+                    isRotatingRef.current = true; // 转动标识置为true
+                    const sub = movePointRef.current.sub(startPointRef.current); // 计算转动向量
+                    const direction = getDirection(sub); // 获得方向
+                    const elements = getBoxs(intersectRef.current, direction);
+                    // const startTime = new Date().getTime();
+                    window.requestAnimationFrame((timestamp) => {
+                        rotateAnimation(elements, direction, timestamp, 0);
+                    });
+                }
+            }
+        }
+        event.preventDefault();
+    };
+
+    // 魔方操作结束
+    const stopCube = () => {
+        intersectRef.current = null;
+        startPointRef.current = null;
+        isMouseDown.current = false;
+    };
+
     // 获取操作焦点以及该焦点所在平面的法向量
     const getIntersects = (event) => {
         // 触摸事件和鼠标事件获得坐标的方式有点区别
@@ -655,11 +597,44 @@ function Home() {
         const width = window.innerWidth;
         const height = window.innerHeight;
         if (canvas.width !== width || canvas.height !== height) {
-          rendererRef.current.setSize(width, height);
-          cameraRef.current.aspect = width / height;
-          cameraRef.current.updateProjectionMatrix();
+            rendererRef.current.setSize(width, height);
+            cameraRef.current.aspect = width / height;
+            cameraRef.current.updateProjectionMatrix();
         }
     }
+
+    // 渲染
+    const render = () => {
+        resizeCanvasToDisplaySize()
+        rendererRef.current.clear();
+        rendererRef.current.render(sceneRef.current, cameraRef.current);
+        window.requestAnimationFrame(render);
+    };
+
+    // 开始
+    const threeStart = () => {
+        initThree();
+        initCamera();
+        initScene();
+        initLight();
+        initObject();
+        render();
+        // 监听鼠标事件
+        rendererRef.current.domElement.addEventListener('mousedown', startCube, false);
+        rendererRef.current.domElement.addEventListener('mousemove', moveCube, false);
+        rendererRef.current.domElement.addEventListener('mouseup', stopCube, false);
+        // 监听触摸事件
+        rendererRef.current.domElement.addEventListener('touchstart', startCube, false);
+        rendererRef.current.domElement.addEventListener('touchmove', moveCube, false);
+        rendererRef.current.domElement.addEventListener('touchend', stopCube, false);
+        // 视角控制
+        const controller = new OrbitControls(
+            cameraRef.current,
+            rendererRef.current.domElement
+        );
+        controller.target = new THREE.Vector3(0, 0, 0); // 设置控制点
+        controllerRef.current = controller;
+    };
 
     useEffect(() => {
         threeStart();
