@@ -41,7 +41,7 @@ function Home() {
             1,
             1000
         );
-        camera.position.set(0, 0, 600);
+        camera.position.set(340, 240, 440);
         camera.up.set(0, 1, 0); // 正方向
         camera.lookAt(origPoint);
         cameraRef.current = camera;
